@@ -1,0 +1,71 @@
+substitutions:
+  name: "esp32limiter"
+  device_description: "SDM Emulator"
+  modbus_controller_id: sg03lp1
+
+esphome:
+  name: ${name}
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+# Enable logging
+logger:
+  level: DEBUG
+  baud_rate: 0
+
+# Enable Home Assistant API
+api:
+
+ota:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+
+captive_portal:
+
+uart:
+  id: intmodbus
+  tx_pin: 2
+  rx_pin: 16
+  baud_rate: 9600
+  stop_bits: 1
+  debug:
+    direction: BOTH
+
+
+# Define the Modbus integration
+modbus:
+  id: modbus_hub
+  baud_rate: 9600
+  data_bits: 8
+  parity: EVEN
+  stop_bits: 1
+  wait_time: 2
+
+modbus_register:
+  - name: "Register12"
+    address: 12
+    register_type: holding
+
+external_components:
+  - source: "modbus.cpp"
+    name: modbus_cpp
+    setup_priority: -10
+    
+# Configure the lambda to write to Register 12 when the value of sensor/SDMEmulator changes
+lambda:
+  - name: "on_message"
+    on_message:
+      topic: "sensor/SDMEmulator"
+      then:
+        - modbus_write_register:
+            id: modbus_hub
+            register: Register12
+            value: !lambda 'return id(x).val;'
